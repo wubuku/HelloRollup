@@ -346,3 +346,130 @@ TypeScript 本身不使用 Node.js 的包装器。
 
 编译后的 JavaScript 代码的行为取决于您的 TypeScript 配置和目标环境。
 
+
+
+### 打包为 IIFE 模块
+
+Rollup 配置文件 `rollup.config.js` 示例：
+
+```js
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+
+export default {
+  input: 'src/main.js',
+  output: {
+    file: 'dist/bundle.js',
+    format: 'iife',
+    name: 'MyLibrary'
+  },
+  plugins: [nodeResolve()]
+};
+```
+
+包文件 `package.json` 示例：
+
+```json
+{
+  "name": "hello-rollup",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/bundle.js",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "lodash-es": "^4.17.21",
+    "rollup": "^3.0.0"
+  }
+}
+```
+
+示例 `src/main.js` 文件：
+
+```js
+import { join } from 'lodash-es';
+
+export function sayHello(name) {
+  return join(['Hello', name], ' ');
+}
+```
+
+在浏览器中这样使用：
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hello Rollup</title>
+  <script src="./dist/bundle.js"></script>
+</head>
+<body>
+  <script>
+    console.log(MyLibrary.sayHello('World'));
+    
+    // 如果你想在页面上显示结果
+    const resultElement = document.createElement('p');
+    resultElement.textContent = MyLibrary.sayHello('World');
+    document.body.appendChild(resultElement);
+  </script>
+</body>
+</html>
+```
+
+而不需要使用：
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hello Rollup</title>
+</head>
+<body>
+  <script type="module">
+    import { sayHello } from './dist/bundle.js';
+    
+    console.log(sayHello('World'));
+    
+    // 如果你想在页面上显示结果
+    const resultElement = document.createElement('p');
+    resultElement.textContent = sayHello('World');
+    document.body.appendChild(resultElement);
+  </script>
+</body>
+</html>
+```
+
+示例 `src/main.js` 文件中还可以这样检测环境并将 `sayHello` 输出到适当的全局对象：
+
+```js
+// 检测环境并将 sayHello 输出到适当的全局对象
+(function(root) {
+  // 检查 globalThis（现代环境）
+  if (typeof globalThis !== 'undefined') {
+    globalThis.sayHello = sayHello;
+  }
+  // 检查 window（浏览器环境）
+  else if (typeof window !== 'undefined') {
+    window.sayHello = sayHello;
+  }
+  // 检查 global（Node.js 环境）
+  else if (typeof global !== 'undefined') {
+    global.sayHello = sayHello;
+  }
+  // 检查 self（Web Worker 环境）
+  else if (typeof self !== 'undefined') {
+    self.sayHello = sayHello;
+  }
+  // 如果以上都不适用，尝试使用传入的 root 参数
+  else if (typeof root !== 'undefined') {
+    root.sayHello = sayHello;
+  }
+})(typeof self !== 'undefined' ? self : typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : {});
+```
+
